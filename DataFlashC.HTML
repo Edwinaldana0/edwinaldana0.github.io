@@ -1,0 +1,2090 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ASEUTP — Procesador de Asistentes — Base</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --ase-primary: #b36c00;
+      --ase-amber: #ffb400;
+      --ase-accent: #ffd24a;
+      --ase-green: #00937f;
+      --card-bg: rgba(255,255,255,0.95);
+      --ase-indigo: #23317a;
+    }
+    body{
+      background: linear-gradient(180deg,#fff9ec 0%,#fffdf6 100%);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color:#2b2b2b;
+    }
+    .dropzone { transition: all .18s ease; }
+    .badge { display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .5rem; border-radius:999px; font-size:.85rem; }
+    .sheet-preview { max-height:140px; overflow:auto; }
+    .glass { background: var(--card-bg); backdrop-filter: blur(6px); }
+    .theme-underline{ height:3px; background: linear-gradient(90deg,var(--ase-amber),var(--ase-primary)); border-radius:2px; }
+    table thead th{ color:var(--ase-primary); font-weight:600; }
+    .tag { padding:.25rem .5rem; border-radius:999px; font-size:.8rem; }
+    .sample-cell { font-size:.8rem; color:#333; padding:.15rem .35rem; border-radius:6px; background:#fff8e6; border:1px solid #fff1d0; display:inline-block; margin-right:.25rem; margin-bottom:.25rem; }
+    .small-muted { font-size:.8rem; color:#6b7280; }
+    .detector-badge { font-size:0.65rem; padding:.15rem .4rem; border-radius:999px; background:#fff7e0; color:var(--ase-primary); margin-left:.4rem; }
+    .alt-note { font-size:0.8rem; color:#b85a00; margin-left:.4rem; }
+
+    /* LOGIN modal */
+    .modal-backdrop {
+      background: #ffffff;
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      overflow: auto;
+    }
+    .modal {
+      width: min(920px, 96%);
+      max-width: 920px;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.18);
+      background: linear-gradient(180deg,#ffffff,#fffdf6);
+    }
+    .modal-left {
+      flex: 1 1 56%;
+      min-width: 340px;
+      background: linear-gradient(180deg,#fff7d6 0%, #ffd24a 100%);
+      color: rgba(0,0,0,0.85);
+      padding: 28px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .single-card {
+      width: 360px;
+      height: 360px;
+      border-radius: 18px;
+      box-shadow: 0 30px 60px rgba(179,108,0,0.12);
+      overflow: hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border: 6px solid rgba(255,255,255,0.35);
+      background: radial-gradient(circle at 30% 25%, rgba(255,250,230,0.6), transparent 30%),
+                  linear-gradient(180deg, rgba(255,244,210,0.6), rgba(255,226,120,0.12));
+    }
+    .modal-right {
+      flex: 0 0 360px;
+      padding: 28px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 12px;
+    }
+    .modal-right h2 { color: var(--ase-primary); font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+    .modal-right p.lead { color: #6b7280; font-size: 14px; margin-bottom: 8px; }
+    .input {
+      width: 100%;
+      padding: .7rem .9rem;
+      border: 1px solid #efe6d0;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      background: #fffaf2;
+    }
+    .input:focus { box-shadow: 0 6px 18px rgba(179,108,0,0.08); border-color: var(--ase-primary); }
+    .btn-primary {
+      display: inline-block;
+      background: linear-gradient(90deg,var(--ase-accent),var(--ase-amber));
+      color: var(--ase-primary);
+      padding: .7rem .95rem;
+      border-radius: 8px;
+      font-weight: 700;
+      text-align: center;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(179,108,0,0.12);
+    }
+    .btn-yellow { background: linear-gradient(90deg,var(--ase-accent),var(--ase-amber)); color: var(--ase-primary); }
+    .small-link { color: var(--ase-primary); font-size: 13px; text-decoration: none; }
+    .credentials-hint { display:none !important; }
+
+    @media (max-width: 880px) {
+      .modal { flex-direction: column; width: min(420px,96%); }
+      .modal-left { min-height: 160px; padding: 18px; }
+      .single-card { width: 220px; height: 220px; }
+      .modal-right { padding: 18px; }
+    }
+  </style>
+</head>
+<body class="text-gray-800">
+  <!-- LOGIN MODAL -->
+  <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal" role="document" aria-labelledby="loginTitle">
+      <div class="modal-left" aria-hidden="false">
+        <div style="position:absolute; left:22px; top:18px; color:rgba(0,0,0,0.85);">
+          <div style="font-weight:800; font-size:18px; letter-spacing:.2px;">ASEUTP</div>
+          <div style="font-size:12px; color:rgba(0,0,0,0.6);">Asociación de Egresados · UTP</div>
+        </div>
+        <img class="w-full h-full object-contain" alt="Logo ASEUTP" src="LOGO1.png">
+        <div style="position:absolute; bottom:22px; left:22px; color:rgba(0,0,0,0.85); font-size:13px; max-width:260px;">
+          Bienvenido al Procesador de Asistentes de <strong>ASEUTP</strong>. Gestiona listas y exporta en segundos.
+        </div>
+      </div>
+
+      <div class="modal-right">
+        <div>
+          <h2 id="loginTitle">Iniciar sesión</h2>
+          <p class="lead">Ingresa las credenciales para acceder al Procesador de Asistentes.</p>
+        </div>
+
+        <div>
+          <label for="loginUser" class="text-sm text-gray-700">Usuario</label>
+          <input id="loginUser" type="text" placeholder="Teléfono, usuario o correo electrónico" class="input mt-1" />
+        </div>
+
+        <div>
+          <label for="loginPass" class="text-sm text-gray-700">Contraseña</label>
+          <input id="loginPass" type="password" placeholder="Contraseña" class="input mt-1" />
+        </div>
+
+        <div id="loginMsg" style="min-height:20px; color:#b00020; font-size:13px;"></div>
+
+        <div class="flex flex-col gap-2">
+          <button id="loginBtn" class="btn-primary">Iniciar sesión</button>
+
+          <!-- Importar JSON desde el login (ACUMULA) -->
+          <input id="importJsonFile" type="file" accept=".json,application/json" class="hidden" />
+          <!-- (compatibilidad con acciones si lo usas allá) -->
+          <input id="importJsonInput" type="file" accept=".json,application/json" class="hidden" />
+          <button id="importJsonBtn" class="btn-yellow" type="button">Importar datos (JSON)</button>
+
+          <!-- Preferencia por defecto: ACUMULAR -->
+          <label class="text-xs text-gray-600 mt-1 flex items-center gap-2">
+            <input id="appendToggle" type="checkbox" checked />
+            Acumular datos al procesar / importar (no borrar existentes)
+          </label>
+        </div>
+
+        <div class="credentials-hint">Credenciales ocultas</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div class="min-h-screen p-6 lg:p-12" aria-hidden="true">
+    <header class="max-w-7xl mx-auto mb-8">
+      <div class="flex items-center justify-between gap-6">
+        <div class="flex items-center gap-4">
+          <div>
+            <div class="text-lg font-extrabold" style="color:var(--ase-primary)">ASEUTP</div>
+            <div class="text-xs text-gray-600">Asociación de Egresados · UTP</div>
+          </div>
+        </div>
+
+        <!-- NAV NUEVO con botones estilo “rectángulo blanco” -->
+        <div class="hidden md:flex items-center gap-4">
+          <nav class="text-sm text-gray-700 flex items-center gap-3">
+            <a id="navHome"
+               href="#"
+               class="px-3 py-2 rounded-md bg-white border hover:bg-gray-50 shadow-sm">
+               Inicio
+            </a>
+            <a id="navTable"
+               href="#summaryTable"
+               class="px-3 py-2 rounded-md bg-white border hover:bg-gray-50 shadow-sm">
+               Asistentes
+            </a>
+            <button id="logoutBtn"
+                    type="button"
+                    class="px-3 py-2 rounded-md bg-white border hover:bg-gray-50 shadow-sm">
+                    Cerrar sesión
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      <div class="mt-4 theme-underline w-48"></div>
+      <div class="mt-4 max-w-4xl text-sm text-gray-600">
+        Sube archivos .xlsx/.xls/.csv con listas de asistencia. Si no hay columna "CÉDULA",
+        mapea columnas (Nombre + Apellido) y elige identificador (cédula / email / teléfono / generar ID).
+        El sistema ahora <strong>acumula</strong> datos por defecto: nada de lo previo se borra.
+      </div>
+    </header>
+
+    <!-- AVISO DE INICIO: se muestra cuando importas un JSON -->
+    <div id="importBanner" class="max-w-7xl mx-auto mb-6 hidden">
+      <div class="glass border rounded-xl p-4 flex items-center justify-between">
+        <div class="text-sm">
+          <span class="font-semibold" style="color:var(--ase-primary)">Archivo .JSON importado con éxito.</span>
+          <span class="text-gray-600">Los datos se han acumulado en tu base local.</span>
+        </div>
+        <button id="bannerClose" class="px-2 py-1 text-sm bg-white border rounded hover:bg-gray-50">Cerrar</button>
+      </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto grid gap-6 lg:grid-cols-3">
+      <section class="lg:col-span-2 glass p-6 rounded-2xl shadow-lg">
+        <div class="flex flex-col gap-4">
+          <div id="dropzone" class="dropzone border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center text-center bg-gradient-to-br from-white to-gray-50 hover:shadow-2xl">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 5 17 10"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
+            <strong class="text-lg" style="color:var(--ase-primary)">Arrastra y suelta archivos aquí</strong>
+            <p class="text-sm text-gray-500 mt-2">(.xlsx, .xls, .csv). Puedes subir varios a la vez. Revisa la muestra antes de confirmar.</p>
+            <input id="fileInput" type="file" multiple class="hidden" accept=".xlsx,.xls,.csv,.xlsm,.xlsb,.ods,.txt" />
+            <div class="mt-4 flex gap-2 flex-wrap justify-center">
+              <button id="selectBtn" type="button" class="px-4 py-2 rounded-md font-medium" style="background:linear-gradient(90deg,var(--ase-accent),var(--ase-amber)); color:var(--ase-primary)">Seleccionar archivos</button>
+              <button id="processBtn" type="button" class="px-4 py-2 rounded-md font-medium btn-yellow" style="color:var(--ase-primary)">Revisar y Procesar</button>
+              <button id="exportBtn" type="button" class="px-4 py-2 rounded-md font-medium" style="background:linear-gradient(90deg,var(--ase-amber),#ffcf6b); color:var(--ase-primary)">Exportar (CSV/JSON)</button>
+              <button id="clearBtn" type="button" class="px-4 py-2 rounded-md bg-white border text-gray-700">Limpiar</button>
+            </div>
+          </div>
+
+          <div id="filesList" class="mt-4"></div>
+
+          <div id="reviewArea" class="mt-4 hidden">
+            <h3 class="font-semibold text-gray-800">Revisión de hojas detectadas</h3>
+            <p class="text-sm text-gray-600">Verifica y mapea columnas. Puedes seleccionar NOMBRE y APELLIDO en columnas distintas; el sistema los concatenará. Cada hoja muestra cuál detector la encontró.</p>
+            <div id="sheetsPreview" class="mt-3 grid gap-3"></div>
+            <div class="mt-3 flex gap-2">
+              <button id="confirmReviewBtn" type="button" class="px-4 py-2 rounded-md font-medium" style="background:linear-gradient(90deg,var(--ase-accent),var(--ase-amber)); color:var(--ase-primary)">Confirmar y procesar</button>
+              <button id="cancelReviewBtn" type="button" class="px-3 py-2 rounded-md bg-white border">Volver</button>
+            </div>
+          </div>
+
+          <div id="toast" class="fixed bottom-6 right-6 hidden bg-gray-800 text-white px-4 py-2 rounded">Mensaje</div>
+        </div>
+      </section>
+
+      <aside class="glass p-6 rounded-2xl shadow-lg flex flex-col gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-600">Buscar por cedula</label>
+          <div class="mt-2 flex gap-2">
+            <input id="searchInput" type="text" placeholder="Ej: 1086634771 o email@example.com" class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2" />
+            <button id="searchBtn" type="button" class="px-3 py-2 rounded-md font-medium" style="background:var(--ase-primary); color:white">Buscar</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-600">Buscar por NOMBRE completo</label>
+          <div class="mt-2 flex gap-2">
+            <input id="searchNameInput" type="text" placeholder="Ej: Juan Pérez" class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2" />
+            <button id="searchNameBtn" type="button" class="px-3 py-2 rounded-md font-medium" style="background:#d6a800; color:white">Buscar</button>
+          </div>
+        </div>
+
+        <div id="resultCard" class="hidden bg-white p-4 rounded-lg border">
+          <div class="flex items-start justify-between">
+            <div>
+              <h4 class="font-semibold">Resultado</h4>
+              <p id="resultName" class="text-sm text-gray-700">Nombre: —</p>
+              <p id="resultEmail" class="text-sm text-gray-700">Correo: —</p>
+              <p id="resultPhone" class="text-sm text-gray-700">Teléfono: —</p>
+              <p id="resultConsent" class="text-sm text-gray-700">Autorización de datos: —</p>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-gray-500">Estado</div>
+              <div class="mt-1 tag text-white" style="background:var(--ase-green); padding:.25rem .6rem; border-radius:8px">Asistente</div>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="text-sm font-medium">Temas asistidos</label>
+            <div id="resultTemas" class="mt-2 flex flex-wrap gap-2"></div>
+          </div>
+          <div class="mt-3">
+            <label class="text-sm font-medium">Mensaje editable</label>
+            <textarea id="editableMsg" rows="4" class="w-full mt-2 p-2 border rounded" placeholder="Escribe aquí un mensaje para el asistente..."></textarea>
+          </div>
+          <div class="mt-3 flex gap-2">
+            <button id="copyTemasBtn" type="button" class="px-3 py-2 rounded-md" style="background:linear-gradient(90deg,var(--ase-accent),var(--ase-amber)); color:var(--ase-primary)">Copiar temas</button>
+            <button id="copyAllTemasBtn" type="button" class="px-3 py-2 rounded-md" style="background:var(--ase-amber); color:#1a1a1a">Copiar TODOS los temas</button>
+          </div>
+
+          <div id="nameResultsList" class="mt-3"></div>
+        </div>
+
+        <div>
+          <h4 class="font-semibold">TEMAS (Resumen)</h4>
+          <div id="temasList" class="mt-2 flex flex-wrap gap-2"></div>
+        </div>
+      </aside>
+
+      <section class="lg:col-span-3 mt-4">
+        <div class="glass p-6 rounded-2xl shadow-lg">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold mb-3 text-gray-800">Resumen de asistentes (tabla)</h3>
+            <div class="text-sm text-gray-600">Total: <span id="totalCount">0</span></div>
+          </div>
+
+          <div class="overflow-auto mt-3">
+            <table id="summaryTable" class="min-w-full text-sm table-auto border-collapse">
+              <thead class="bg-white">
+                <tr>
+                  <th class="px-3 py-2 text-left">ID (cédula/email/teléfono)</th>
+                  <th class="px-3 py-2 text-left">Nombre completo</th>
+                  <th class="px-3 py-2 text-left">Correo</th>
+                  <th class="px-3 py-2 text-left">Teléfono</th>
+                  <th class="px-3 py-2 text-left">Temas</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="max-w-7xl mx-auto mt-8 text-sm text-gray-500">Hecho para ASEUTP · Asociación de Egresados UTP — Diseño responsivo y accesible.</footer>
+  </div>
+
+  <!-- librerías -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.7.1/dist/jszip.min.js"></script>
+
+  <script>
+  /* ============================
+   * PARTE 1 — BASE (persistencia + login + estado)
+   * ============================ */
+
+  // ---- Estado global (con ACUMULACIÓN por defecto) ----
+  const state = {
+    files: [],
+    sheetsMeta: [],
+    cedulaMap: {},          // { idKey: {name, email, phone, consent, temas:Set, sources:[] } }
+    temasSet: new Set(),
+    sheetsToProcess: [],
+    currentCedula: null,
+    appendMode: true        // acumular (no borrar) al procesar/importar
+  };
+
+  // ---- Utils ----
+  const $ = id => document.getElementById(id);
+  const toast = (t) => { const el = $('toast'); if(!el) return; el.textContent = t; el.classList.remove('hidden'); setTimeout(()=> el.classList.add('hidden'), 3500); };
+  function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // Normalización de encabezados
+  function normalizeTextForHeader(s){
+    if (!s && s !== 0) return '';
+    let t = (''+s).toString();
+    t = t.replace(/\u00A0/g,' ');
+    t = t.normalize ? t.normalize('NFD').replace(/[̀-ͯ]/g, '') : t;
+    t = t.replace(/[\u200B-\u200D\uFEFF]/g,'');
+    t = t.replace(/[^\w\s@.\-\,\:\/\(\)\#\+]+/g,' ');
+    t = t.replace(/\bNo\.?\b/ig,'numero ');
+    t = t.replace(/\s+/g,' ').trim().toLowerCase();
+    return t;
+  }
+  const headerTokenMap = [
+    {tok:'cedula',   rx:/(^|\s)(cedula|c c|c\.c\.|c\.|documento|identificacion|identificacion\.|numero documento|dni|id)(\s|$)/i},
+    {tok:'fullname', rx:/(^|\s)(nombre completo|nombres y apellidos|nombre y apellido|nombrecompleto)(\s|$)/i},
+    {tok:'name',     rx:/(^|\s)(nombre|nombres|primer nombre)(\s|$)/i},
+    {tok:'lastname', rx:/(^|\s)(apellido|apellidos|segundo apellido|primer apellido)(\s|$)/i},
+    {tok:'email',    rx:/(^|\s)(correo|correo electronico|email|e-?mail|mail)(\s|$)/i},
+    {tok:'phone',    rx:/(^|\s)(telefono|teléfono|tel\.?|celular|cel|movil|whatsapp)(\s|$)/i},
+    {tok:'tema',     rx:/(^|\s)(tema|temas|taller|charla|evento)(\s|$)/i},
+    {tok:'consent',  rx:/(^|\s)(autoriza|autorizaci[oó]n|acepto|consentimiento|autorizo|egresad[oas]?)(\s|$)/i},
+  ];
+  function detectTokenFromCell(text){
+    if (!text) return null;
+    for (const m of headerTokenMap){ if (m.rx.test(text)) return m.tok; }
+    return null;
+  }
+
+  // ---- LOGIN + importar JSON (acumula) ----
+  (function(){
+    const modal = $('loginModal');
+    const userIn = $('loginUser');
+    const passIn = $('loginPass');
+    const btn = $('loginBtn');
+    const msg = $('loginMsg');
+    const importBtn = $('importJsonBtn');
+    const importFile = $('importJsonFile');
+    const appendToggle = $('appendToggle');
+    const banner = $('importBanner');
+    const bannerClose = $('bannerClose');
+
+    bannerClose?.addEventListener('click', ()=> banner.classList.add('hidden'));
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 3;
+    const CORRECT_USER = 'ASEUTP';
+    const CORRECT_PASS = '453UTP';
+
+    state.appendMode = true;
+    appendToggle.checked = true;
+    appendToggle.addEventListener('change', ()=>{ state.appendMode = !!appendToggle.checked; ASEDB.saveDBPrefs(); });
+
+    if (modal) {
+      document.body.style.overflow = 'hidden';
+
+      function doLogin(){
+        const u = (userIn.value||'').toString().trim();
+        const p = (passIn.value||'').toString().trim();
+
+        if (u === CORRECT_USER && p === CORRECT_PASS){
+          modal.style.display = 'none';
+          document.body.style.overflow = '';
+          attempts = 0;
+          msg.textContent = '';
+          if (typeof renderSummaryTable === 'function') renderSummaryTable();
+          if (typeof renderTemasList === 'function') renderTemasList();
+          const total = Object.keys(state.cedulaMap||{}).length;
+          $('totalCount').textContent = total;
+        } else {
+          attempts += 1;
+          msg.textContent = 'Usuario o contraseña incorrectos';
+          passIn.value = '';
+          passIn.focus();
+          if (attempts >= MAX_ATTEMPTS) {
+            toast('ANUNCIO: contraseña correcta → ' + CORRECT_PASS);
+            if (msg) { msg.style.color = '#b36c00'; msg.textContent = 'Has excedido 3 intentos. Contraseña: ' + CORRECT_PASS; }
+          }
+        }
+      }
+
+      btn.addEventListener('click', doLogin);
+      [userIn, passIn].forEach(inp=> inp.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') doLogin(); }));
+      userIn.focus();
+
+      // Importar JSON (acumulando) + AVISO EN INICIO
+      importBtn.addEventListener('click', ()=> (importFile || $('importJsonInput')).click());
+      (importFile || $('importJsonInput')).addEventListener('change', async (e)=>{
+        const f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!f) return;
+        try{
+          await ASEDB.importFromFile(f, /*append*/ true);
+          if (typeof renderSummaryTable === 'function') renderSummaryTable();
+          if (typeof renderTemasList === 'function') renderTemasList();
+          $('totalCount').textContent = Object.keys(state.cedulaMap||{}).length;
+          toast('Archivos importados correctamente');
+          banner?.classList.remove('hidden'); // << mostrar aviso en Inicio
+        }catch(err){
+          console.error(err);
+          toast('No se pudo importar el JSON');
+        }
+      });
+    }
+  })();
+
+  // ---- Persistencia local (localStorage) con ACUMULACIÓN ----
+  const ASEDB = {
+    KEY: 'aseutp_db_v2',
+    PREFKEY: 'aseutp_prefs_v1',
+
+    saveDB(){
+      try {
+        const asistentes = {};
+        for (const k of Object.keys(state.cedulaMap||{})){
+          const e = state.cedulaMap[k];
+          asistentes[k] = {
+            name: e.name || '',
+            email: e.email || '',
+            phone: e.phone || '',
+            consent: e.consent || '',
+            temas: [...(e.temas||new Set())],
+            sources: e.sources || []
+          };
+        }
+        const snapshot = {
+          app: 'ASEUTP-Processor',
+          version: 2,
+          total: Object.keys(asistentes).length,
+          asistentes,
+          temas: [...(state.temasSet||new Set())],
+          appendMode: !!state.appendMode
+        };
+        localStorage.setItem(this.KEY, JSON.stringify(snapshot));
+      } catch(e){ console.warn('saveDB error', e); }
+    },
+
+    saveDBPrefs(){
+      try { localStorage.setItem(this.PREFKEY, JSON.stringify({appendMode: !!state.appendMode})); } catch(_){}
+    },
+
+    loadDB(){
+      try{
+        const p = localStorage.getItem(this.PREFKEY);
+        if (p){ const pref = JSON.parse(p); state.appendMode = !!pref.appendMode; const t = $('appendToggle'); if (t) t.checked = state.appendMode; }
+      }catch(_){}
+      try{
+        const raw = localStorage.getItem(this.KEY);
+        if (!raw) return;
+        const snap = JSON.parse(raw);
+        this.mergeSnapshot(snap, /*append*/ true);
+      } catch(e){ console.warn('loadDB error', e); }
+    },
+
+    async importFromFile(file, append=true){
+      const txt = await file.text();
+      const snap = JSON.parse(txt);
+      this.mergeSnapshot(snap, append);
+      this.saveDB();
+    },
+
+    // MERGE: añade sin borrar; actualiza solo faltantes
+    mergeSnapshot(snap, append=true){
+      if (!snap) return;
+      const incoming = {};
+
+      if (snap.asistentes && typeof snap.asistentes === 'object'){
+        // formatos: {asistentes:{idKey:{...}}} o {asistentes:[...]}
+        if (Array.isArray(snap.asistentes)){
+          for (const e of snap.asistentes){
+            const k = e.idKey || e.id || e.identificador;
+            if (!k) continue;
+            incoming[k] = {
+              name: e.name || e.nombre || '',
+              email: e.email || e.correo || '',
+              phone: (e.phone || e.telefono || '').toString(),
+              consent: e.consent || e.autorizacion || '',
+              temas: new Set(e.temas || []),
+              sources: e.sources || []
+            };
+          }
+        } else {
+          for (const k of Object.keys(snap.asistentes)){
+            const e = snap.asistentes[k] || {};
+            incoming[k] = {
+              name: e.name || '',
+              email: e.email || '',
+              phone: e.phone || '',
+              consent: e.consent || '',
+              temas: new Set(e.temas || []),
+              sources: e.sources || []
+            };
+          }
+        }
+      }
+      if (Array.isArray(snap.tabla)){
+        for (const row of snap.tabla){
+          const k = row.id;
+          if (!k) continue;
+          if (!incoming[k]) incoming[k] = {name:'',email:'',phone:'',consent:'',temas:new Set(),sources:[]};
+          if (row.nombre && !incoming[k].name) incoming[k].name = row.nombre;
+          if (row.correo && !incoming[k].email) incoming[k].email = row.correo;
+          if (row.telefono && !incoming[k].phone) incoming[k].phone = row.telefono;
+          if (row.autorizacion && !incoming[k].consent) incoming[k].consent = row.autorizacion;
+          (row.temas||[]).forEach(t => incoming[k].temas.add(t));
+        }
+      }
+
+      for (const k of Object.keys(incoming)){
+        const src = incoming[k];
+        if (!state.cedulaMap[k]){
+          state.cedulaMap[k] = {
+            name: src.name || '',
+            email: src.email || '',
+            phone: src.phone || '',
+            consent: src.consent || '',
+            temas: new Set(src.temas || []),
+            sources: src.sources || []
+          };
+        } else {
+          const dst = state.cedulaMap[k];
+          if (!dst.name && src.name) dst.name = src.name;
+          if (!dst.email && src.email) dst.email = src.email;
+          if (!dst.phone && src.phone) dst.phone = src.phone;
+          if (!dst.consent && src.consent) dst.consent = src.consent;
+          (src.temas||new Set()).forEach(t => dst.temas.add(t));
+          (src.sources||[]).forEach(s => dst.sources.push(s));
+        }
+      }
+      const addTemas = (snap.temas && Array.isArray(snap.temas)) ? snap.temas : [];
+      addTemas.forEach(t => state.temasSet.add(t));
+    },
+
+    clearDB(){
+      try { localStorage.removeItem(this.KEY); } catch(_){}
+    }
+  };
+
+  // cargar datos guardados (si existen)
+  ASEDB.loadDB();
+
+  // ---- Parser XLSX fallback (JSZip) ----
+  async function parseXlsxWithJSZip(file) {
+    if (typeof JSZip === 'undefined') throw new Error('JSZip no disponible');
+    const arr = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(arr);
+    const files = Object.keys(zip.files);
+    async function readIf(name){ if (zip.files[name]) return await zip.files[name].async('text'); return null; }
+    const sharedStrXml = await readIf('xl/sharedStrings.xml');
+    let sharedStrings = [];
+    if (sharedStrXml) {
+      try {
+        const dp = new DOMParser();
+        const doc = dp.parseFromString(sharedStrXml, 'application/xml');
+        const si = doc.getElementsByTagName('si');
+        for (let i=0;i<si.length;i++){
+          const item = si[i];
+          const tNodes = item.getElementsByTagName('t');
+          let txt = '';
+          for (let j=0;j<tNodes.length;j++) txt += (tNodes[j].textContent || '');
+          sharedStrings.push(txt);
+        }
+      } catch(e){ sharedStrings = []; }
+    }
+    let sheetNames = [];
+    const workbookXml = await readIf('xl/workbook.xml');
+    if (workbookXml) {
+      try {
+        const dp = new DOMParser();
+        const doc = dp.parseFromString(workbookXml, 'application/xml');
+        const sheets = doc.getElementsByTagName('sheet');
+        for (let i=0;i<sheets.length;i++){
+          const s = sheets[i];
+          const nm = s.getAttribute('name');
+          if (nm) sheetNames.push(nm);
+        }
+      } catch(e){}
+    }
+    const worksheets = files.filter(n => /^xl\/worksheets\/sheet\d+\.xml$/i.test(n));
+    const sheets = {};
+    for (const wpath of worksheets){
+      const content = await readIf(wpath);
+      try {
+        const dp = new DOMParser();
+        const doc = dp.parseFromString(content, 'application/xml');
+        const rowsMap = {};
+        const cellNodes = doc.getElementsByTagName('c');
+        for (let i=0;i<cellNodes.length;i++){
+          const c = cellNodes[i];
+          const r = c.getAttribute('r');
+          const t = c.getAttribute('t');
+          const match = r ? r.match(/^([A-Z]+)(\d+)$/i) : null;
+          if (!match) continue;
+          const colLetters = match[1];
+          const rowIndex = parseInt(match[2],10) - 1;
+          let colIndex = 0;
+          for (let k=0;k<colLetters.length;k++){
+            colIndex = colIndex * 26 + (colLetters.charCodeAt(k) - 64);
+          }
+          colIndex = colIndex - 1;
+          let value = '';
+          const vNode = c.getElementsByTagName('v')[0];
+          if (vNode) {
+            value = vNode.textContent || '';
+            if (t === 's') {
+              const idx = parseInt(value,10);
+              if (!isNaN(idx) && sharedStrings[idx] !== undefined) value = sharedStrings[idx];
+            }
+          } else {
+            const isNode = c.getElementsByTagName('is')[0];
+            if (isNode) {
+              const tNodes = isNode.getElementsByTagName('t');
+              let txt = '';
+              for (let j=0;j<tNodes.length;j++) txt += (tNodes[j].textContent || '');
+              value = txt;
+            } else {
+              value = '';
+            }
+          }
+          if (!rowsMap[rowIndex]) rowsMap[rowIndex] = {};
+          rowsMap[rowIndex][colIndex] = value;
+        }
+        const maxRow = Math.max(-1, ...Object.keys(rowsMap).map(n=>parseInt(n,10)));
+        let maxCol = -1;
+        for (const rKey in rowsMap){
+          for (const cKey in rowsMap[rKey]){
+            maxCol = Math.max(maxCol, parseInt(cKey,10));
+          }
+        }
+        const rows = [];
+        for (let r=0;r<=maxRow;r++){
+          const rowArr = [];
+          for (let c=0;c<=maxCol;c++){
+            rowArr.push((rowsMap[r] && rowsMap[r][c]) ? rowsMap[r][c] : '');
+          }
+          rows.push(rowArr);
+        }
+        sheets[wpath] = rows;
+      } catch(e){}
+    }
+    const out = { SheetNames: [], Sheets: {} };
+    if (sheetNames.length) {
+      const sortedWs = worksheets.slice().sort();
+      for (let i=0;i<sortedWs.length;i++){
+        const path = sortedWs[i];
+        const name = sheetNames[i] || ('Sheet' + (i+1));
+        out.SheetNames.push(name);
+        out.Sheets[name] = (sheets[path] || []);
+      }
+    } else {
+      const sortedWs = worksheets.slice().sort();
+      for (let i=0;i<sortedWs.length;i++){
+        const path = sortedWs[i];
+        const name = ('Sheet' + (i+1));
+        out.SheetNames.push(name);
+        out.Sheets[name] = (sheets[path] || []);
+      }
+    }
+    return out;
+  }
+/* ============================
+ * PARTE 2 — DETECCIÓN
+ * ============================ */
+
+/* --- helpers de tokens SI/NO (por si se usan en reglas) --- */
+function isYesToken(val){
+  if (val === undefined || val === null) return false;
+  const s = (''+val).toString().trim().toLowerCase();
+  if (!s) return false;
+  if (/^\s*(si|sí|s|yes)\b/i.test(s)) return true;
+  if (/^\s*si[\.\-\:]?\s*$/i.test(s)) return true;
+  return false;
+}
+function isNoToken(val){
+  if (val === undefined || val === null) return false;
+  const s = (''+val).toString().trim().toLowerCase();
+  if (!s) return false;
+  if (/^\s*(no|n|not|false)\b/i.test(s)) return true;
+  if (/^\s*no[\.\-\:]?\s*$/i.test(s)) return true;
+  return false;
+}
+
+/* --- refinamiento por contenido (email/teléfono) --- */
+function refineColumnsByContent(meta, rows){
+  try {
+    const maxCol = Math.max((rows[0]||[]).length, meta._columnsCount || 1);
+    const startRow = (typeof meta.headerRowIndex === 'number' && meta.headerRowIndex >= 0) ? meta.headerRowIndex + 1 : 0;
+    const colEmailCount = new Array(maxCol).fill(0);
+    const colPhoneCount = new Array(maxCol).fill(0);
+    const colNonEmptyCount = new Array(maxCol).fill(0);
+
+    const emailRe = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+    const phoneStrongRe = /(\+57\s*)?(\(?3\d{2}\)?[\s\-]?\d{3}[\s\-]?\d{4})/;
+    const digitsSeqReGlobal = /\d{6,13}/g;
+
+    const rowsToScan = Math.min(rows.length, Math.max(120, Math.min(800, rows.length)));
+
+    for (let r = startRow; r < rowsToScan; r++){
+      const row = rows[r] || [];
+      for (let c = 0; c < maxCol; c++){
+        const cell = (row[c] === undefined || row[c] === null) ? '' : String(row[c]);
+        if (!cell || String(cell).trim() === '') continue;
+        colNonEmptyCount[c] += 1;
+        if (emailRe.test(cell)) colEmailCount[c] += 1;
+        if (phoneStrongRe.test(cell)) colPhoneCount[c] += 3;
+        const ds = (cell.match(digitsSeqReGlobal) || []).map(x=>x.replace(/\D/g,''));
+        for (const d of ds){
+          if (d.length === 10 && /^3/.test(d)) colPhoneCount[c] += 2;
+          else if (d.length >= 7 && d.length <= 13) colPhoneCount[c] += 1;
+        }
+      }
+    }
+
+    const headerRow = (meta.headerRowIndex >= 0 && rows[meta.headerRowIndex]) ? rows[meta.headerRowIndex] : [];
+    const headerIsIgnored = idx => {
+      const h = (headerRow[idx] || '').toString().toLowerCase();
+      if (!h) return false;
+      if (/firma|firmas|autoriz|autoriza/i.test(h)) return true;
+      return false;
+    };
+
+    // email
+    if ((typeof meta.emailIdx !== 'number' || meta.emailIdx < 0)) {
+      let best = -1, bestScore = 0;
+      for (let c = 0; c < maxCol; c++){
+        if (headerIsIgnored(c)) continue;
+        const score = (colEmailCount[c] || 0);
+        if (score > bestScore && (colNonEmptyCount[c] || 0) > 0){ best = c; bestScore = score; }
+      }
+      if (bestScore >= 1) meta.emailIdx = best;
+    } else {
+      const current = meta.emailIdx;
+      const currentEvidence = (colEmailCount[current]||0);
+      if (currentEvidence === 0) {
+        let best = -1, bestScore = 0;
+        for (let c = 0; c < maxCol; c++){
+          if (headerIsIgnored(c)) continue;
+          const score = (colEmailCount[c]||0);
+          if (score > bestScore && (colNonEmptyCount[c]||0) > 0) { best = c; bestScore = score; }
+        }
+        if (bestScore >= 1) meta.emailIdx = best;
+      }
+    }
+
+    // teléfono
+    if ((typeof meta.phoneIdx !== 'number' || meta.phoneIdx < 0)) {
+      let best = -1, bestScore = 0;
+      for (let c = 0; c < maxCol; c++){
+        if (headerIsIgnored(c)) continue;
+        const score = (colPhoneCount[c] || 0);
+        if (score > bestScore && (colNonEmptyCount[c] || 0) > 0){ best = c; bestScore = score; }
+      }
+      if (bestScore >= 1) meta.phoneIdx = best;
+    } else {
+      const currentP = meta.phoneIdx;
+      const currentPEvidence = (colPhoneCount[currentP]||0);
+      if (currentPEvidence === 0) {
+        let best = -1, bestScore = 0;
+        for (let c = 0; c < maxCol; c++){
+          if (headerIsIgnored(c)) continue;
+          const score = (colPhoneCount[c]||0);
+          if (score > bestScore && (colNonEmptyCount[c]||0) > 0) { best = c; bestScore = score; }
+        }
+        if (bestScore >= 1) meta.phoneIdx = best;
+      }
+    }
+
+    meta._contentRefine = { emailEvidence: colEmailCount, phoneEvidence: colPhoneCount, nonEmpty: colNonEmptyCount };
+  } catch (e) { console.warn('refineColumnsByContent error', e); }
+}
+
+/* ---------- detectSheets (lector principal con fallback) ---------- */
+async function detectSheets(){
+  state.sheetsMeta = [];
+  for (const f of state.files){
+    let wb = null;
+    let usedFallback = false;
+    try {
+      const arr = new Uint8Array(await f.arrayBuffer());
+      wb = XLSX.read(arr, {type: 'array'});
+      if (!wb || !wb.SheetNames || wb.SheetNames.length === 0) {
+        usedFallback = true;
+        wb = await parseXlsxWithJSZip(f);
+      }
+    } catch (err) {
+      try {
+        wb = await parseXlsxWithJSZip(f);
+        usedFallback = true;
+      } catch (err2) {
+        console.error('Error leyendo archivo con ambos métodos:', f.name, err2);
+        toast('Error leyendo ' + f.name + '. Archivo ignorado.');
+        continue;
+      }
+    }
+
+    for (const sname of wb.SheetNames){
+      let rows = [];
+      if (usedFallback) {
+        rows = wb.Sheets[sname] || [];
+      } else {
+        try {
+          const sheet = wb.Sheets[sname];
+          rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:false}) || [];
+        } catch(e) {
+          try {
+            const manual = await parseXlsxWithJSZip(f);
+            rows = manual.Sheets[sname] || [];
+          } catch(e2){
+            rows = [];
+          }
+        }
+      }
+
+      // --- detección de encabezado ---
+      const maxHeaderSearchRows = Math.min(40, rows.length);
+      let headerRowIndex = -1;
+
+      const rowHeaderScores = [];
+      for (let r = 0; r < maxHeaderSearchRows; r++){
+        const row = rows[r] || [];
+        let score = 0;
+        for (let c = 0; c < row.length; c++){
+          const raw = (row[c] || '').toString().replace(/\u00A0/g,' ').trim();
+          if (!raw) continue;
+          const norm = normalizeTextForHeader(raw);
+          const token = detectTokenFromCell(norm);
+          if (token) score += 1;
+          if (/^(no|nro|#|numero)\b/i.test(raw)) score += 0.2;
+        }
+        rowHeaderScores.push({r, score});
+      }
+      if (rowHeaderScores.length) {
+        const best = rowHeaderScores.slice().sort((a,b)=> b.score - a.score)[0];
+        if (best && best.score > 0) headerRowIndex = best.r;
+      }
+
+      if (headerRowIndex === -1){
+        for (let r = 0; r < Math.min(8, rows.length); r++){
+          const row = rows[r] || [];
+          const nonEmpty = row.filter(c=> (''+c).toString().trim() !== '');
+          if (nonEmpty.length >= Math.max(2, Math.floor((row.length||1)/2))) { headerRowIndex = r; break; }
+        }
+      }
+
+      // features por columna
+      const sampleCheckRows = Math.min(500, rows.length);
+      const colEmails = [], colPhoneLike = [], colCedLike = [], colTextScore = [];
+      for (let r=0;r<sampleCheckRows;r++){
+        const row = rows[r] || [];
+        for (let c=0;c<row.length;c++){
+          const cell = (row[c]||'').toString();
+          if (!colEmails[c]) colEmails[c] = 0;
+          if (!colPhoneLike[c]) colPhoneLike[c] = 0;
+          if (!colCedLike[c]) colCedLike[c] = 0;
+          if (!colTextScore[c]) colTextScore[c] = 0;
+
+          if (cell.match(/[^\s@]+@[^\s@]+\.[^\s@]+/)) colEmails[c]++;
+          const digitsMatch = cell.replace(/\D/g,'').match(/\d{6,13}/g);
+          if (digitsMatch){
+            for (const m of digitsMatch){
+              const len = m.length;
+              if (len === 10 && /^3/.test(m)) colPhoneLike[c] += 2;
+              else if (len >= 7 && len <= 13) colPhoneLike[c] += 1;
+              if (len >= 6 && len <= 13) colCedLike[c] += 1;
+            }
+          }
+          if (cell.match(/[A-Za-zÁÉÍÓÚÑáéíóúñ]/)) colTextScore[c]++;
+        }
+      }
+
+      // candidatos por encabezado
+      let cedIdx = -1, nameIdx = -1, lastNameIdx = -1, emailIdx = -1, phoneIdx = -1, consentIdx = -1;
+      if (headerRowIndex >= 0){
+        const headerRow = rows[headerRowIndex] || [];
+        for (let c = 0;c < headerRow.length; c++){
+          const raw = (headerRow[c]||'').toString();
+          const norm = normalizeTextForHeader(raw);
+          const token = detectTokenFromCell(norm);
+          if (token === 'cedula') cedIdx = c;
+          if (token === 'fullname') { nameIdx = c; lastNameIdx = -1; }
+          if (token === 'name') { if (nameIdx === -1) nameIdx = c; }
+          if (token === 'lastname') { if (lastNameIdx === -1) lastNameIdx = c; }
+          if (token === 'email') emailIdx = c;
+          if (token === 'phone') phoneIdx = c;
+          if (token === 'consent') consentIdx = c;
+        }
+      }
+
+      // plausibilidad cédula
+      let cedValid = false;
+      if (cedIdx >= 0){
+        const startRow = (headerRowIndex >= 0) ? headerRowIndex + 1 : 0;
+        let plausible = 0, total = 0;
+        for (let r = startRow; r < Math.min(rows.length, startRow + 80); r++){
+          const row = rows[r] || [];
+          const raw = (row[cedIdx]||'').toString();
+          if (!raw) continue;
+          const digits = raw.replace(/\D/g,'');
+          total++;
+          if (digits && digits.length >=6 && digits.length <= 13) {
+            if (!(digits.length === 10 && /^3/.test(digits))) plausible++;
+          }
+        }
+        if (plausible >= 1 && (total === 0 || (plausible/Math.max(1,total)) >= 0.14)) cedValid = true;
+        if (!cedValid){ cedIdx = -1; }
+      }
+
+      // par SI/NO
+      let consentYesIdx = -1, consentNoIdx = -1;
+      if (headerRowIndex >= 0) {
+        const headerRow = rows[headerRowIndex] || [];
+        for (let c = 0; c < headerRow.length; c++){
+          const normH = normalizeTextForHeader((headerRow[c] || '')).toLowerCase();
+          if (/^\s*si\b/.test(normH) || /^sí\b/.test(normH) || /^s\b/.test(normH)) consentYesIdx = c;
+          if (/^\s*no\b/.test(normH) || /^n\b/.test(normH)) consentNoIdx = c;
+        }
+        if ((consentYesIdx < 0 || consentNoIdx < 0)) {
+          for (let c = 0; c < headerRow.length; c++){
+            const normH = normalizeTextForHeader((headerRow[c] || '')).toLowerCase();
+            if (/autoriza|autorizaci[oó]n|acepto|consentimiento|autorizo/.test(normH)) {
+              const an = normalizeTextForHeader((headerRow[c+1]||'')).toLowerCase();
+              const bn = normalizeTextForHeader((headerRow[c+2]||'')).toLowerCase();
+              if (/^\s*si\b/.test(an) && /^\s*no\b/.test(bn)) { consentYesIdx = c+1; consentNoIdx = c+2; break; }
+              if (/^\s*si\b/.test(bn) && /^\s*no\b/.test(an)) { consentYesIdx = c+2; consentNoIdx = c+1; break; }
+            }
+          }
+        }
+      }
+
+      // derivar tema
+      let tema = null;
+      if (headerRowIndex >= 0){
+        const headerRow = rows[headerRowIndex] || [];
+        for (let c=0;c<headerRow.length;c++){
+          const norm = normalizeTextForHeader(headerRow[c]||'');
+          if (detectTokenFromCell(norm) === 'tema') { tema = headerRow[c]; break; }
+        }
+      }
+      if (!tema){
+        for (let r=0; r<Math.min(8, rows.length) && !tema; r++){
+          for (let c=0;c<(rows[r]||[]).length;c++){
+            const cell = (rows[r][c]||'').toString();
+            const m = cell.match(/TEMA\s*[:\-]\s*(.+)/i);
+            if (m){ tema = m[1].trim(); break; }
+          }
+        }
+      }
+      if (!tema){
+        let derived = f.name.replace(/\.[^.]+$/,'').replace(/\bAsistencia\b/ig,'').replace(/\bRegistro\b/ig,'').replace(/\bRegistro de\b/ig,'').replace(/[_\-\(\)]/g,' ').replace(/\s+/g,' ').trim();
+        tema = derived || sname || f.name.replace(/\.[^.]+$/,'');
+      }
+
+      // muestra de filas
+      const sampleStart = (headerRowIndex >=0) ? headerRowIndex : 0;
+      const sampleRows = rows.slice(sampleStart, sampleStart + 6).map(r => (r||[]).map(c => c === undefined || c === null ? '' : String(c)));
+
+      const metaObj = {
+        fileName: f.name,
+        sheetName: sname,
+        rowCount: rows.length,
+        cedIdx, nameIdx, lastNameIdx, emailIdx, phoneIdx, consentIdx,
+        headerRowIndex,
+        tema,
+        sampleRows,
+        cedValid,
+        override: null,
+        _columnsCount: Math.max( (rows[0]||[]).length, 1),
+        _origin: 'original',
+        consentYesIdx: (typeof consentYesIdx === 'number' && consentYesIdx >= 0) ? consentYesIdx : -1,
+        consentNoIdx: (typeof consentNoIdx === 'number' && consentNoIdx >= 0) ? consentNoIdx : -1
+      };
+      metaObj._autoSelected = (typeof cedIdx === 'number' && cedIdx >= 0 && !!cedValid);
+
+      try { refineColumnsByContent(metaObj, rows); } catch(_){}
+
+      state.sheetsMeta.push(metaObj);
+    }
+  }
+  renderSheetsPreview();
+}
+
+/* ---------- Helpers UI: archivos ---------- */
+function handleFiles(files) {
+  const extRegex = /\.(xlsx|xls|csv|xlsm|xlsb|ods|txt)$/i;
+  const accepted = files.filter(f => extRegex.test(f.name));
+  const existingKeys = new Set(state.files.map(f => f.name + '|' + f.size));
+  const newFiles = accepted.filter(f => !existingKeys.has(f.name + '|' + f.size));
+  if (!newFiles.length) return toast('No hay archivos nuevos o válidos');
+  state.files.push(...newFiles);
+  renderFilesList();
+}
+
+function renderFilesList(){
+  const filesList = $('filesList');
+  if (!filesList) return;
+  filesList.innerHTML = '';
+  state.files.forEach((f, i)=>{
+    const div = document.createElement('div');
+    div.className = 'p-3 rounded border flex items-center justify-between gap-3';
+    div.innerHTML = `<div class="flex items-center gap-3">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-gray-400">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <path d="M14 2v6h6"/>
+        </svg>
+        <div>
+          <strong>${escapeHtml(f.name)}</strong>
+          <div class="text-xs text-gray-500">${(f.size/1024).toFixed(1)} KB</div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button data-i="${i}" type="button" class="removeBtn px-2 py-1 bg-gray-100 rounded">Quitar</button>
+      </div>`;
+    filesList.appendChild(div);
+  });
+  filesList.querySelectorAll('.removeBtn').forEach(b=> b.onclick = ()=>{
+    const i = +b.dataset.i;
+    state.files.splice(i,1);
+    renderFilesList();
+  });
+}
+
+/* ---------- Preview de hojas ---------- */
+let _showAutoHidden = false;
+function toggleShowAutoHidden(){
+  _showAutoHidden = !_showAutoHidden;
+  renderSheetsPreview();
+}
+
+function renderSheetsPreview(){
+  const sheetsPreview = $('sheetsPreview');
+  if (!sheetsPreview) return;
+  sheetsPreview.innerHTML = '';
+
+  const visibleMetas = state.sheetsMeta.filter(m => _showAutoHidden || !m._autoSelected);
+  const hiddenCount = state.sheetsMeta.filter(m => m._autoSelected).length;
+
+  const infoBar = document.createElement('div');
+  infoBar.style.marginBottom = '8px';
+  if (hiddenCount > 0 && !_showAutoHidden) {
+    infoBar.innerHTML = `<div class="text-sm text-gray-600">
+      Se ocultaron ${hiddenCount} hoja(s) detectadas automáticamente.
+      <button id="showHiddenBtn" class="px-2 py-1 text-xs border rounded">Mostrar ocultas</button></div>`;
+    sheetsPreview.appendChild(infoBar);
+    setTimeout(()=>{ const btn = document.getElementById('showHiddenBtn'); if (btn) btn.onclick = toggleShowAutoHidden; }, 20);
+  } else if (hiddenCount > 0 && _showAutoHidden) {
+    infoBar.innerHTML = `<div class="text-sm text-gray-600">
+      Mostrando todas las hojas (incluidas las detectadas automáticamente).
+      <button id="hideHiddenBtn" class="px-2 py-1 text-xs border rounded">Ocultar automáticamente seleccionadas</button></div>`;
+    sheetsPreview.appendChild(infoBar);
+    setTimeout(()=>{ const btn = document.getElementById('hideHiddenBtn'); if (btn) btn.onclick = toggleShowAutoHidden; }, 20);
+  }
+
+  visibleMetas.forEach((m)=>{
+    const realIndex = state.sheetsMeta.indexOf(m);
+    const card = document.createElement('div');
+    card.className = 'p-3 rounded-lg border flex flex-col gap-3 sheet-card';
+    card.dataset.metaIndex = realIndex;
+
+    const opts = ['<option value="none">-- No asignar --</option>'];
+    for (let c=0;c<m._columnsCount;c++){ opts.push(`<option value="${c}">col ${c}</option>`); }
+
+    const cedHint = m.cedIdx>=0 ? (m.cedValid ? 'Detectada automáticamente' : 'Detectada, revisar') : 'No detectada automáticamente';
+    const originBadge = `<span class="detector-badge">detector: ${m._origin || 'original'}</span>`;
+    const autoBadge = (m._autoSelected) ? `<span class="detector-badge" style="background:#e6fff4;color:#007a4d;margin-left:.5rem">auto-seleccionada</span>` : '';
+    const altNote = (m._altDetections && m._altDetections.length) ? `<div class="alt-note">Alternativas: ${m._altDetections.length} (ver consola)</div>` : '';
+    const evidenceHtml = (m._contentRefine ? `<div class="text-xs text-gray-500 mt-1">Evidencia (email/phone): ${ (m._contentRefine.emailEvidence || []).map((v,i)=>v?i+':'+v:'').filter(Boolean).join(', ') || '—' }</div>` : '');
+
+    const html = `
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-sm font-medium" style="color:var(--ase-indigo)">${escapeHtml(m.fileName)} — <span class="font-semibold">${escapeHtml(m.sheetName)}</span>${originBadge}${autoBadge}${altNote}</div>
+          <div class="text-xs text-gray-500">Filas: ${m.rowCount}</div>
+          ${evidenceHtml}
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs">Incluir hoja</label>
+          <input data-i="${realIndex}" type="checkbox" ${m._autoSelected && !m._forcedUnselect ? 'checked' : ''} />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-sm font-medium">CÉDULA (col recomendado: ${m.cedIdx>=0? m.cedIdx:'—'})</label>
+          <div class="mt-2"><select class="sel-cedula mapping-select border px-2 py-1 rounded">${opts.join('')}</select></div>
+          <div class="small-muted">Sugerencia: ${cedHint}</div>
+        </div>
+        <div>
+          <label class="text-sm font-medium">NOMBRE (col recomendado: ${m.nameIdx>=0? m.nameIdx:'—'})</label>
+          <div class="mt-2"><select class="sel-nombre mapping-select border px-2 py-1 rounded">${opts.join('')}</select></div>
+        </div>
+        <div>
+          <label class="text-sm font-medium">APELLIDO (col recomendado: ${m.lastNameIdx>=0? m.lastNameIdx:'—'})</label>
+          <div class="mt-2"><select class="sel-apellido mapping-select border px-2 py-1 rounded">${opts.join('')}</select></div>
+          <div class="small-muted">Si no hay columna apellido, seleccione "-- No asignar --" y se intentará concatenar nombre completo.</div>
+        </div>
+        <div>
+          <label class="text-sm font-medium">CORREO (col recomendado: ${m.emailIdx>=0? m.emailIdx:'—'})</label>
+          <div class="mt-2"><select class="sel-email mapping-select border px-2 py-1 rounded">${opts.join('')}</select></div>
+        </div>
+        <div>
+          <label class="text-sm font-medium">TELÉFONO (col recomendado: ${m.phoneIdx>=0? m.phoneIdx:'—'})</label>
+          <div class="mt-2"><select class="sel-phone mapping-select border px-2 py-1 rounded">${opts.join('')}</select></div>
+        </div>
+        <div>
+          <label class="text-sm font-medium">AUTORIZACIÓN (col recomendado: ${m.consentIdx>=0? m.consentIdx:'—'})</label>
+          <div class="mt-2"><select class="sel-consent mapping-select border px-2 py-1 rounded">${opts.join('')}</select></div>
+          <div class="small-muted">Si el archivo usa columnas separadas "SI" / "NO" con marcas (X/✓), el detector intentará usar esas columnas.</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <label style="display:flex;align-items:center;gap:.5rem"><input type="checkbox" class="chk-use-phone-email" /> Usar teléfono/email como identificador si no hay cédula</label>
+        <label style="display:flex;align-items:center;gap:.5rem"><input type="checkbox" class="chk-gen-id" /> Generar ID interno si no hay identificador (opcional)</label>
+      </div>
+
+      <div class="mt-2 text-sm"><strong>TEMA:</strong> ${escapeHtml(m.tema || '')}</div>
+
+      <div class="mt-2 text-sm small-muted">Muestra (primeras filas):</div>
+      <div class="mt-1">
+        ${ (m.sampleRows||[]).map((row,ridx)=>{
+          const cells = (row||[]).map((c,ci)=>`<span class="sample-cell"><strong>${ci}</strong>: ${escapeHtml(c)}</span>`).join('');
+          return `<div style="margin-top:.25rem">${ridx === 0 && m.headerRowIndex >= 0 ? '<em style="font-size:.75rem;color:#2b6bb0">(Posible encabezado)</em> ' : ''}${cells}</div>`;
+        }).join('') }
+      </div>
+    `;
+    card.innerHTML = html;
+    sheetsPreview.appendChild(card);
+
+    const selCed = card.querySelector('.sel-cedula');
+    const selName = card.querySelector('.sel-nombre');
+    const selLast = card.querySelector('.sel-apellido');
+    const selEmail = card.querySelector('.sel-email');
+    const selPhone = card.querySelector('.sel-phone');
+    const selConsent = card.querySelector('.sel-consent');
+    if (selCed) selCed.value = (m.cedIdx>=0? m.cedIdx : 'none');
+    if (selName) selName.value = (m.nameIdx>=0? m.nameIdx : 'none');
+    if (selLast) selLast.value = (m.lastNameIdx>=0? m.lastNameIdx : 'none');
+    if (selEmail) selEmail.value = (m.emailIdx>=0? m.emailIdx : 'none');
+    if (selPhone) selPhone.value = (m.phoneIdx>=0? m.phoneIdx : 'none');
+    if (selConsent) selConsent.value = (m.consentIdx>=0? m.consentIdx : 'none');
+  });
+
+  if (visibleMetas.length === 0 && state.sheetsMeta.length > 0) {
+    const note = document.createElement('div');
+    note.className = 'text-sm text-gray-600';
+    note.style.marginTop = '8px';
+    note.innerHTML = 'Todas las hojas fueron detectadas automáticamente y han sido ocultadas. Haz clic en "Mostrar ocultas" para revisarlas.';
+    sheetsPreview.appendChild(note);
+  }
+}
+
+/* ---------- Consentimiento ---------- */
+function parseConsentFromCell(cellValue, rowCells){
+  try {
+    const txt = (cellValue||'').toString().trim();
+    const normalized = txt.replace(/\s+/g,' ').replace(/[*\u2022\u25CF\u25A0]/g,'').trim().toLowerCase();
+    const yesPatterns = [/^\s*s[ií]\b/, /^\bsi\b/, /^\bs\b/, /(^|[^a-z0-9])si($|[^a-z0-9])/, /\bacepto\b/, /\bautoriz/i, /\bautorizo\b/, /\btrue\b/, /^\s*1\s*$/];
+    const noPatterns  = [/\bno\b/, /^\s*n\s*$/, /\bfalse\b/, /^\s*0\s*$/, /no autoriz/];
+
+    for (const p of yesPatterns){ if (p.test(normalized)) return 'SI'; }
+    for (const p of noPatterns){ if (p.test(normalized)) return 'NO'; }
+
+    if ((!normalized || normalized.length === 0) && Array.isArray(rowCells)){
+      for (const c of rowCells){
+        const nd = (c||'').toString().trim().replace(/\s+/g,' ').toLowerCase();
+        for (const p of noPatterns) if (p.test(nd)) return 'NO';
+        for (const p of yesPatterns) if (p.test(nd)) return 'SI';
+      }
+    }
+
+    const m = (txt||'').match(/autoriza[\s\:\-\,]*\s*(si|no|s|n|acepto|autorizo|x|✓|✔)/i);
+    if (m){
+      const v = (m[1]||'').toString().toLowerCase();
+      if (/^s|si|acepto|autorizo|1|true/.test(v)) return 'SI';
+      if (/^n|no|0|false/.test(v)) return 'NO';
+    }
+  } catch(e){}
+  return null;
+}
+function isMark(val){
+  if (val === undefined || val === null) return false;
+  const s = (''+val).toString().trim();
+  return (/^[xX✗✘✓✔]$/.test(s) || /^[xX✗✘✓✔]\s*$/.test(s));
+}
+
+/* ---------- Detección extra (segundo detector) ---------- */
+async function detectSheets_v2(){
+  const extras = [];
+  for (const f of state.files){
+    try {
+      const arr = new Uint8Array(await f.arrayBuffer());
+      const wb = XLSX.read(arr, {type: 'array'});
+      for (const sname of wb.SheetNames){
+        try {
+          const sheet = wb.Sheets[sname];
+          const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:false});
+
+          const maxHeaderSearchRows = Math.min(20, rows.length);
+          let headerRowIndex = -1;
+          const colScores = [];
+          for (let r = 0; r < maxHeaderSearchRows; r++){
+            const row = rows[r] || [];
+            for (let c = 0; c < row.length; c++){
+              const raw = (row[c] || '').toString().replace(/\u00A0/g,' ').trim();
+              if (!raw) continue;
+              const normalized = (raw.normalize ? raw.normalize('NFD').replace(/\p{Diacritic}/gu, '') : raw).toUpperCase().replace(/[^A-Z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+              if (!colScores[c]) colScores[c] = {ced:0, name:0, email:0, phone:0};
+              if (/(CEDULA|C C|CC|C\.C\.|DOCUMENTO|IDENTIFICACION|IDENTIFICACIÓN|NUMERO DOCUMENTO|DOC\b)/.test(normalized)) { colScores[c].ced++; headerRowIndex = headerRowIndex === -1 ? r : headerRowIndex; }
+              if (/(NOMBRE|NOMBRE COMPLETO|APELLIDO|APELLIDOS|NOMBRES)/.test(normalized)) { colScores[c].name++; headerRowIndex = headerRowIndex === -1 ? r : headerRowIndex; }
+              if (/(CORREO|EMAIL|E-MAIL|MAIL)/.test(normalized)) { colScores[c].email++; headerRowIndex = headerRowIndex === -1 ? r : headerRowIndex; }
+              if (/(TELEFONO|TELÉFONO|TEL|TEL\.|CELULAR|MOVIL|MÓVIL|WHATSAPP|CEL)/.test(normalized)) { colScores[c].phone++; headerRowIndex = headerRowIndex === -1 ? r : headerRowIndex; }
+              if (/(AUTORIZA|AUTORIZACION|AUTORIZO|ACEPTO|CONSENTIMIENTO|EGRESAD)/.test(normalized)) { if (!colScores[c]) colScores[c] = {}; colScores[c].consent = (colScores[c].consent||0)+1; headerRowIndex = headerRowIndex === -1 ? r : headerRowIndex; }
+            }
+          }
+
+          let cedIdx = -1, nameIdx = -1, emailIdx = -1, phoneIdx = -1, consentIdx = -1;
+          if (colScores.length){
+            let maxCed = 0, maxName = 0, maxEmail = 0, maxPhone = 0, maxConsent = 0;
+            for (let c = 0; c < colScores.length; c++){
+              const s = colScores[c] || {};
+              if ((s.ced||0)   > maxCed)   { maxCed   = s.ced||0;   cedIdx = c; }
+              if ((s.name||0)  > maxName)  { maxName  = s.name||0;  nameIdx = c; }
+              if ((s.email||0) > maxEmail) { maxEmail = s.email||0; emailIdx = c; }
+              if ((s.phone||0) > maxPhone) { maxPhone = s.phone||0; phoneIdx = c; }
+              if ((s.consent||0) > maxConsent){ maxConsent = s.consent||0; consentIdx = c; }
+            }
+          }
+
+          // heurística numérica para cédula
+          if (cedIdx === -1){
+            const colNumericCounts = [];
+            const sampleCheckRows2 = Math.min(10, rows.length);
+            for (let r = 0; r < sampleCheckRows2; r++){
+              const row = rows[r] || [];
+              for (let c = 0; c < row.length; c++){
+                const cell = (row[c]||'').toString();
+                if (!colNumericCounts[c]) colNumericCounts[c] = 0;
+                if (/^\s*[\d\.\-\s]+\s*$/.test(cell)) colNumericCounts[c]++;
+              }
+            }
+            let maxNum = 0;
+            for (let c = 0; c < colNumericCounts.length; c++){
+              if ((colNumericCounts[c]||0) > maxNum && (colNumericCounts[c]||0) >= Math.min(2, Math.floor(sampleCheckRows2/2))){
+                maxNum = colNumericCounts[c]; cedIdx = c;
+              }
+            }
+          }
+
+          // validar cédula
+          let cedValid = false;
+          if (cedIdx >= 0){
+            const startRow = (headerRowIndex >= 0) ? headerRowIndex + 1 : 0;
+            let plausibleCount = 0, totalChecked = 0;
+            for (let r = startRow; r < Math.min(rows.length, startRow + 12); r++){
+              const row = rows[r] || [];
+              const raw = (row[cedIdx]||'').toString();
+              const digits = raw.replace(/\D/g,'');
+              if (!raw) continue;
+              totalChecked++;
+              if (digits && digits.length >= 6 && digits.length <= 13) plausibleCount++;
+            }
+            if (plausibleCount >= 1 && (totalChecked === 0 || (plausibleCount / Math.max(1,totalChecked)) >= 0.2)) cedValid = true;
+            if (!cedValid){ cedIdx = -1; }
+          }
+
+          // par SI/NO
+          let consentYesIdx = -1, consentNoIdx = -1;
+          if (headerRowIndex >= 0){
+            const headerRow = rows[headerRowIndex] || [];
+            for (let c=0;c<headerRow.length;c++){
+              const h = normalizeTextForHeader(headerRow[c]||'').toLowerCase();
+              if (/^\s*si\b/.test(h) || /^sí\b/.test(h) || /^s\b/.test(h)) consentYesIdx = c;
+              if (/^\s*no\b/.test(h) || /^n\b/.test(h)) consentNoIdx = c;
+            }
+            if ((consentYesIdx < 0 || consentNoIdx < 0)) {
+              for (let c=0;c<headerRow.length;c++){
+                const h = normalizeTextForHeader(headerRow[c]||'').toLowerCase();
+                if (/autoriza|autorizaci[oó]n|acepto|consentimiento|autorizo/.test(h)) {
+                  if (/^\s*si\b/.test(normalizeTextForHeader(headerRow[c+1]||''))) consentYesIdx = c+1;
+                  if (/^\s*no\b/.test(normalizeTextForHeader(headerRow[c+2]||''))) consentNoIdx = c+2;
+                }
+              }
+            }
+          }
+
+          // tema
+          let tema = null;
+          for (let r=0; r<Math.min(8, rows.length) && !tema; r++){
+            for (let c=0; c<(rows[r]||[]).length; c++){
+              const cell = (rows[r][c]||'').toString();
+              const m = cell.match(/TEMA\s*[:\-]\s*(.+)/i);
+              if (m) { tema = m[1].trim(); break; }
+            }
+          }
+          if (!tema){
+            let derived = f.name.replace(/\.[^.]+$/,'').replace(/\bAsistencia\b/ig,'').replace(/\bRegistro\b/ig,'').replace(/\bRegistro de\b/ig,'').replace(/[_\-\(\)]/g,' ').replace(/\s+/g,' ').trim();
+            tema = derived || sname || f.name.replace(/\.[^.]+$/,'');
+          }
+
+          const sampleStart = (headerRowIndex >=0) ? headerRowIndex : 0;
+          const sampleRows = rows.slice(sampleStart, sampleStart + 6).map(r => (r||[]).map(c => c === undefined || c === null ? '' : String(c)));
+
+          const extraMeta = {
+            fileName: f.name,
+            sheetName: sname,
+            rowCount: rows.length,
+            cedIdx, nameIdx, emailIdx, phoneIdx, consentIdx,
+            headerRowIndex,
+            tema,
+            sampleRows,
+            cedValid,
+            _origin: 'extra',
+            _columnsCount: Math.max((rows[0]||[]).length, 1),
+            consentYesIdx: consentYesIdx >= 0 ? consentYesIdx : -1,
+            consentNoIdx: consentNoIdx >= 0 ? consentNoIdx : -1
+          };
+
+          extraMeta._autoSelected = (typeof cedIdx === 'number' && cedIdx >= 0 && !!cedValid);
+          try { refineColumnsByContent(extraMeta, rows); } catch(e){}
+
+          extras.push(extraMeta);
+        } catch(eSheet){
+          console.warn('Error procesando hoja (extra detector):', f.name, sname, eSheet);
+          continue;
+        }
+      }
+    } catch(eFile){
+      console.warn('Error leyendo archivo en extra detector:', f.name, eFile);
+      continue;
+    }
+  }
+  return extras;
+}
+
+/* ---------- Merge de detecciones ---------- */
+function mergeDetections(extraArr){
+  if (!Array.isArray(extraArr) || !extraArr.length) return;
+  for (const extra of extraArr){
+    const idx = state.sheetsMeta.findIndex(m => m.fileName === extra.fileName && m.sheetName === extra.sheetName);
+    if (idx >= 0){
+      const orig = state.sheetsMeta[idx];
+      orig._altDetections = orig._altDetections || [];
+      orig._altDetections.push(extra);
+
+      orig._autoSelected = !!orig._autoSelected || !!extra._autoSelected;
+
+      if ((typeof orig.emailIdx !== 'number' || orig.emailIdx < 0) && (typeof extra.emailIdx === 'number' && extra.emailIdx >= 0)) {
+        orig.emailIdx = extra.emailIdx; orig._mergedEmailFrom = 'extra';
+      }
+      if ((typeof orig.phoneIdx !== 'number' || orig.phoneIdx < 0) && (typeof extra.phoneIdx === 'number' && extra.phoneIdx >= 0)) {
+        orig.phoneIdx = extra.phoneIdx; orig._mergedPhoneFrom = 'extra';
+      }
+      if ((typeof orig.consentIdx !== 'number' || orig.consentIdx < 0) && (typeof extra.consentIdx === 'number' && extra.consentIdx >= 0)) {
+        orig.consentIdx = extra.consentIdx; orig._mergedConsentFrom = 'extra';
+      }
+
+      if ((typeof orig.consentYesIdx !== 'number' || orig.consentYesIdx < 0) && (typeof extra.consentYesIdx === 'number' && extra.consentYesIdx >= 0)) {
+        orig.consentYesIdx = extra.consentYesIdx; orig._mergedConsentYesFrom = 'extra';
+      }
+      if ((typeof orig.consentNoIdx !== 'number' || orig.consentNoIdx < 0) && (typeof extra.consentNoIdx === 'number' && extra.consentNoIdx >= 0)) {
+        orig.consentNoIdx = extra.consentNoIdx; orig._mergedConsentNoFrom = 'extra';
+      }
+
+      if (orig._contentRefine) {
+        const eEv = (orig._contentRefine.emailEvidence||[]).reduce((a,b)=>a+(b||0),0);
+        const pEv = (orig._contentRefine.phoneEvidence||[]).reduce((a,b)=>a+(b||0),0);
+        const exEv = (extra._contentRefine && extra._contentRefine.emailEvidence) ? extra._contentRefine.emailEvidence.reduce((a,b)=>a+(b||0),0) : 0;
+        const exPv = (extra._contentRefine && extra._contentRefine.phoneEvidence) ? extra._contentRefine.phoneEvidence.reduce((a,b)=>a+(b||0),0) : 0;
+        if (eEv === 0 && exEv > 0 && (typeof extra.emailIdx === 'number' && extra.emailIdx >= 0)) {
+          orig.emailIdx = extra.emailIdx; orig._mergedEmailFrom = 'extraEvidence';
+        }
+        if (pEv === 0 && exPv > 0 && (typeof extra.phoneIdx === 'number' && extra.phoneIdx >= 0)) {
+          orig.phoneIdx = extra.phoneIdx; orig._mergedPhoneFrom = 'extraEvidence';
+        }
+      } else {
+        if (extra._contentRefine && (extra._contentRefine.emailEvidence||[]).some(v=>v>0) && (typeof extra.emailIdx === 'number' && extra.emailIdx >= 0)) {
+          if (typeof orig.emailIdx !== 'number' || orig.emailIdx < 0) { orig.emailIdx = extra.emailIdx; orig._mergedEmailFrom = 'extraEvidence'; }
+        }
+        if (extra._contentRefine && (extra._contentRefine.phoneEvidence||[]).some(v=>v>0) && (typeof extra.phoneIdx === 'number' && extra.phoneIdx >= 0)) {
+          if (typeof orig.phoneIdx !== 'number' || orig.phoneIdx < 0) { orig.phoneIdx = extra.phoneIdx; orig._mergedPhoneFrom = 'extraEvidence'; }
+        }
+      }
+
+      if ((typeof orig.headerRowIndex !== 'number' || orig.headerRowIndex < 0) && (typeof extra.headerRowIndex === 'number' && extra.headerRowIndex >= 0)) orig.headerRowIndex = extra.headerRowIndex;
+      if ((!orig.tema || orig.tema === '') && extra.tema) orig.tema = extra.tema;
+      if ((typeof orig.cedValid !== 'boolean' || orig.cedValid === false) && typeof extra.cedValid === 'boolean') orig.cedValid = extra.cedValid;
+      if ((!orig._columnsCount || orig._columnsCount < 1) && extra._columnsCount) orig._columnsCount = extra._columnsCount;
+      if ((!orig.sampleRows || !orig.sampleRows.length) && extra.sampleRows && extra.sampleRows.length) orig.sampleRows = extra.sampleRows;
+      orig._merged = true;
+    } else {
+      const clone = Object.assign({}, extra);
+      clone.override = null;
+      clone._origin = 'extra';
+      clone._altDetections = [];
+      clone._autoSelected = !!extra._autoSelected;
+      state.sheetsMeta.push(clone);
+    }
+  }
+  state.sheetsMeta.sort((a,b) => {
+    if (a.fileName === b.fileName) return (a.sheetName || '').localeCompare(b.sheetName || '');
+    return (a.fileName || '').localeCompare(b.fileName || '');
+  });
+}
+
+  /* ============================
+   * PARTE 3 — ACCIONES (actualizada)
+   * ============================ */
+
+  // --- utilidades pequeñas ---
+  function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function formatPhoneReadable(digits){
+    if (!digits) return '';
+    if (digits.length === 10) return digits.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
+    if (digits.length === 7)  return digits.replace(/(\d{3})(\d{4})/, '$1 $2');
+    if (digits.length > 10)   return digits.replace(/(\d{3})(\d{3})(\d{4}).*/, (m, a, b, c) => a + ' ' + b + ' ' + c);
+    return digits;
+  }
+
+  // --- persistencia snapshot para exportar ---
+  function snapshotDB(){
+    // Exportamos en formato compatible con el import (acepta objeto o array).
+    const asistentesObj = {};
+    for (const idKey of Object.keys(state.cedulaMap)){
+      const ent = state.cedulaMap[idKey];
+      asistentesObj[idKey] = {
+        name: ent.name || '',
+        email: ent.email || '',
+        phone: ent.phone || '',
+        consent: ent.consent || '',
+        temas: Array.from(ent.temas || []),
+        sources: Array.isArray(ent.sources) ? ent.sources.slice() : []
+      };
+    }
+    // además una vista “tabla” para mayor compatibilidad
+    const tabla = Object.keys(state.cedulaMap).map(idKey=>{
+      const ent = state.cedulaMap[idKey];
+      return {
+        id: idKey,
+        nombre: ent.name || '',
+        correo: ent.email || '',
+        telefono: ent.phone || '',
+        autorizacion: ent.consent || '',
+        temas: Array.from(ent.temas || [])
+      };
+    });
+    return {
+      app: 'ASEUTP-Processor',
+      version: 2,
+      updatedAt: new Date().toISOString(),
+      total: Object.keys(asistentesObj).length,
+      asistentes: asistentesObj,
+      tabla,
+      temas: Array.from(state.temasSet || new Set()),
+      appendMode: !!state.appendMode
+    };
+  }
+
+  function saveToLocal(){
+    try {
+      if (typeof ASEDB?.saveDB === 'function') {
+        ASEDB.saveDB(); // guarda con el mismo formato de BASE
+      } else {
+        // fallback por si no está ASEDB
+        localStorage.setItem('aseutp_db_export_fallback', JSON.stringify(snapshotDB()));
+      }
+    }
+    catch(e){ console.warn('No se pudo guardar en localStorage', e); }
+  }
+
+  // ============================
+  // FINALIZE PROCESSING (acumula, no reemplaza)
+  // ============================
+  async function finalizeProcessing(){
+    try {
+      const processedKeys = new Set();
+
+      for (const sheetMeta of state.sheetsToProcess){
+        const o = (sheetMeta.override || {});
+        const cedIdx     = (typeof o.cedIdx     === 'number' && o.cedIdx    >=0) ? o.cedIdx     : sheetMeta.cedIdx;
+        const nameIdx    = (typeof o.nameIdx    === 'number' && o.nameIdx   >=0) ? o.nameIdx    : sheetMeta.nameIdx;
+        const lastNameIdx= (typeof o.lastNameIdx=== 'number' && o.lastNameIdx>=0)? o.lastNameIdx: sheetMeta.lastNameIdx || -1;
+        const emailIdx   = (typeof o.emailIdx   === 'number' && o.emailIdx  >=0) ? o.emailIdx   : sheetMeta.emailIdx;
+        const phoneIdx   = (typeof o.phoneIdx   === 'number' && o.phoneIdx  >=0) ? o.phoneIdx   : sheetMeta.phoneIdx;
+        const consentIdx = (typeof o.consentIdx === 'number' && o.consentIdx>=0)? o.consentIdx  : sheetMeta.consentIdx;
+
+        const consentYesIdx = (typeof sheetMeta.consentYesIdx === 'number' && sheetMeta.consentYesIdx>=0) ? sheetMeta.consentYesIdx : -1;
+        const consentNoIdx  = (typeof sheetMeta.consentNoIdx  === 'number' && sheetMeta.consentNoIdx >=0) ? sheetMeta.consentNoIdx  : -1;
+
+        const preferPhoneEmailAsId = !!o.preferPhoneEmailAsId;
+        const generateIdIfMissing  = !!o.generateIdIfMissing;
+
+        const key = sheetMeta.fileName + '|' + sheetMeta.sheetName;
+        if (processedKeys.has(key)) continue;
+        processedKeys.add(key);
+
+        const file = state.files.find(f => f.name === sheetMeta.fileName);
+        if (!file) continue;
+
+        // leer filas (con fallback)
+        let rows = [];
+        try {
+          const arr = new Uint8Array(await file.arrayBuffer());
+          const wb = XLSX.read(arr, {type: 'array'});
+          const sheet = wb.Sheets[sheetMeta.sheetName];
+          rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:false});
+        } catch (err) {
+          try {
+            const manual = await parseXlsxWithJSZip(file);
+            rows = manual.Sheets[sheetMeta.sheetName] || [];
+          } catch (err2) {
+            console.error('No se pudo leer hoja:', sheetMeta.fileName, sheetMeta.sheetName, err2);
+            continue;
+          }
+        }
+
+        const tema = sheetMeta.tema;
+        if (tema) state.temasSet.add(tema);
+
+        const headerRowIndex = (typeof sheetMeta.headerRowIndex === 'number' && sheetMeta.headerRowIndex >= 0) ? sheetMeta.headerRowIndex : -1;
+        const startRow = (headerRowIndex >= 0) ? headerRowIndex + 1 : 0;
+
+        for (let r = startRow; r < rows.length; r++){
+          const row = rows[r] || [];
+          if (row.every(c => c === undefined || c === null || (''+c).toString().trim() === '')) continue;
+
+          // extracción primaria
+          const rawCedCell   = (cedIdx     >= 0 && cedIdx     < row.length) ? (row[cedIdx]     || '') : '';
+          const rawNameCell  = (nameIdx    >= 0 && nameIdx    < row.length) ? (row[nameIdx]    || '') : '';
+          const rawLastCell  = (lastNameIdx>= 0 && lastNameIdx< row.length) ? (row[lastNameIdx]|| '') : '';
+          let   rawEmailCell = (emailIdx   >= 0 && emailIdx   < row.length) ? (row[emailIdx]   || '') : '';
+          let   rawPhoneCell = (phoneIdx   >= 0 && phoneIdx   < row.length) ? (row[phoneIdx]   || '') : '';
+
+          // consentimiento
+          let rawConsentCell = '';
+          if (consentIdx >= 0 && consentIdx < row.length) {
+            rawConsentCell = (row[consentIdx] || '');
+          } else if (consentYesIdx >= 0 || consentNoIdx >= 0) {
+            const yesCell = (consentYesIdx >= 0 && consentYesIdx < row.length) ? (row[consentYesIdx] || '') : '';
+            const noCell  = (consentNoIdx  >= 0 && consentNoIdx  < row.length) ? (row[consentNoIdx ] || '') : '';
+            if (isMark(yesCell)) rawConsentCell = 'SI';
+            else if (isMark(noCell)) rawConsentCell = 'NO';
+            else rawConsentCell = yesCell || noCell || '';
+          }
+
+          // cédula (nunca tratar un celular 3XXXXXXXXX como cédula)
+          let rawCed = (rawCedCell||'').toString();
+          let ced = rawCed.replace(/\D/g,'');
+          if ((!ced || ced.length < 6 || ced.length > 13) || (ced.length === 10 && /^3/.test(ced))) {
+            ced = ''; // invalida si parece celular
+          }
+          if (!ced) {
+            // buscar otra secuencia 6–13 que no sea celular
+            for (let c = 0; c < row.length && !ced; c++){
+              const cell = (row[c]||'').toString();
+              const m = cell.match(/(\d{6,13})/);
+              if (m){
+                const candidate = m[1].replace(/\D/g,'');
+                if (!(candidate.length === 10 && /^3/.test(candidate))) ced = candidate;
+              }
+            }
+          }
+
+          // email y teléfono
+          let email = (rawEmailCell || '').toString().trim();
+          let phoneRaw = (rawPhoneCell || '').toString().trim();
+          let phone = phoneRaw.replace(/\D/g,'');
+
+          if (!email) {
+            for (let c = 0; c < row.length; c++){
+              const cell = (row[c]||'').toString();
+              const m = cell.match(/[^\s@]+@[^\s@]+\.[^\s@]+/);
+              if (m) { email = m[0].trim(); break; }
+            }
+          }
+          if (!phone) {
+            const candidates = [];
+            for (let c = 0; c < row.length; c++){
+              const ds = (row[c]||'').toString().replace(/\D/g,'');
+              if (ds && ds.length === 10 && ds.startsWith('3')) candidates.push(ds);
+            }
+            if (candidates.length) phone = candidates[0];
+          }
+
+          // nombre
+          let namePart = (rawNameCell || '').toString().trim();
+          let lastPart = (rawLastCell || '').toString().trim();
+          let fullName = '';
+          if (namePart && lastPart) fullName = (namePart + ' ' + lastPart).trim();
+          else if (namePart && !lastPart) fullName = namePart;
+          else if (!namePart && lastPart) fullName = lastPart;
+          else {
+            for (let c = 0; c < row.length && !fullName; c++){
+              const cell = (row[c]||'').toString();
+              if (cell && /[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(cell) && !cell.match(/[^\s@]+@[^\s@]+\.[^\s@]+/)) {
+                const low = cell.toLowerCase();
+                if (/autoriza|firma|direcci[oó]n|contacto|tel[eé]fono|celular|email|correo|c[eé]dula|documento|no\.?\s?\d+/i.test(low)) continue;
+                fullName = cell.trim();
+              }
+            }
+          }
+
+          // consentimiento normalizado
+          let consent = parseConsentFromCell(rawConsentCell, row);
+          if (!consent) {
+            for (let c = 0; c < row.length && !consent; c++){
+              consent = parseConsentFromCell(row[c], row);
+            }
+          }
+
+          // id preferido (orden: cedula válida -> email -> phone -> generado)
+          let idKey = null;
+          if (ced) idKey = ced;
+          if (!idKey && preferPhoneEmailAsId && phone) idKey = 'phone:' + phone;
+          if (!idKey && email) idKey = 'email:' + email.toLowerCase();
+          if (!idKey && phone) idKey = 'phone:' + phone;
+          if (!idKey && generateIdIfMissing) idKey = `GEN:${sheetMeta.fileName}:${sheetMeta.sheetName}:${r}`;
+          if (!idKey) {
+            if (email) idKey = 'email:' + email.toLowerCase();
+            else if (phone) idKey = 'phone:' + phone;
+          }
+          if (!idKey) continue; // sin identificador, omitir
+
+          // --- MERGE ACUMULATIVO ---
+          if (!state.cedulaMap[idKey]) state.cedulaMap[idKey] = { name:'', email:'', phone:'', consent: null, temas: new Set(), sources: [] };
+          const slot = state.cedulaMap[idKey];
+          if (fullName) slot.name = slot.name || fullName;
+          if (email)    slot.email = slot.email || email;
+          if (phone)    slot.phone = slot.phone || phone;
+          if (consent)  slot.consent = slot.consent || consent;
+          if (tema)     slot.temas.add(tema);
+          slot.sources.push({file: sheetMeta.fileName, sheet: sheetMeta.sheetName, row: r});
+          if (tema) state.temasSet.add(tema);
+        }
+      }
+
+      // render & persist
+      renderSummaryTable();
+      renderTemasList();
+      $('totalCount').textContent = Object.keys(state.cedulaMap).length;
+      saveToLocal();
+      toast('Procesamiento finalizado. Datos acumulados.');
+    } catch (err) {
+      console.error(err);
+      toast('Error durante el procesamiento. Revisa la consola (F12).');
+    }
+  }
+
+  // ============================
+  // RENDER RESUMEN & TEMAS
+  // ============================
+  function renderSummaryTable(){
+    const tbody = document.querySelector('#summaryTable tbody'); if (!tbody) return;
+    tbody.innerHTML = '';
+    const keys = Object.keys(state.cedulaMap).sort((a,b)=> a.localeCompare(b));
+    for (const idKey of keys){
+      const ent = state.cedulaMap[idKey];
+      const temasArr = Array.from(ent.temas || []);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="px-3 py-2">${escapeHtml(idKey)}</td>
+                      <td class="px-3 py-2">${escapeHtml(ent.name||'—')}</td>
+                      <td class="px-3 py-2">${escapeHtml(ent.email||'—')}</td>
+                      <td class="px-3 py-2">${escapeHtml(ent.phone||'—')}</td>
+                      <td class="px-3 py-2">${temasArr.map(t=>`<span class="tag" style="background:#eef2ff;color:var(--ase-indigo);margin-right:.35rem;display:inline-block;padding:.25rem .5rem;border-radius:999px">${escapeHtml(t)}</span>`).join(' ')}</td>`;
+      tr.onclick = () => showResultForId(idKey);
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderTemasList(){
+    const container = $('temasList'); if (!container) return;
+    container.innerHTML = '';
+    Array.from(state.temasSet).sort().forEach(t=>{
+      const b = document.createElement('button');
+      b.className = 'badge';
+      b.style.background = 'linear-gradient(90deg, rgba(35,49,122,0.08), rgba(255,180,0,0.08))';
+      b.style.color = 'var(--ase-indigo)';
+      b.textContent = t;
+      b.onclick = ()=>{ navigator.clipboard.writeText(t); toast('Tema copiado: ' + t); };
+      container.appendChild(b);
+    });
+  }
+
+  function showResultForId(idKey){
+    const ent = state.cedulaMap[idKey];
+    if (!ent) return toast('No encontrado');
+    state.currentCedula = idKey;
+    $('resultCard').classList.remove('hidden');
+    $('resultName').textContent    = 'Nombre: ' + (ent.name || '—');
+    $('resultEmail').textContent   = 'Correo: ' + (ent.email || '—');
+    $('resultPhone').textContent   = 'Teléfono: ' + (ent.phone ? formatPhoneReadable(ent.phone) : '—');
+    $('resultConsent').textContent = 'Autorización de datos: ' + (ent.consent || '—');
+
+    const temasDiv = $('resultTemas'); temasDiv.innerHTML = '';
+    Array.from(ent.temas || []).forEach(t=>{
+      const s = document.createElement('span');
+      s.className = 'badge';
+      s.style.background = 'linear-gradient(90deg,#fff4e6,#fff9f0)';
+      s.style.color = '#b85a00';
+      s.style.border = '1px solid rgba(255,180,0,0.18)';
+      s.textContent = t;
+      temasDiv.appendChild(s);
+    });
+
+    $('editableMsg').value =
+`Hola ${ent.name || ''},
+Quería comentarte sobre los temas a los que asististe: ${Array.from(ent.temas||[]).join(', ')}.
+Teléfono registrado: ${ent.phone ? formatPhoneReadable(ent.phone) : 'No registrado'}.
+Autorización de datos: ${ent.consent || 'No especificada'}.
+Te recomiendo asistir a las siguientes charlas:`;
+    $('nameResultsList').innerHTML = '';
+  }
+
+  // ============================
+  // BÚSQUEDAS
+  // ============================
+  function searchByCedula(raw){
+    const q = (raw||'').toString().trim();
+    if (!q) return toast('Introduce una cédula, email, teléfono o ID');
+    const digits = q.replace(/\D/g,'');
+    if (state.cedulaMap[q]) { showResultForId(q); return; }
+    if (q.includes('@')) {
+      const key = 'email:' + q.toLowerCase();
+      if (state.cedulaMap[key]) { showResultForId(key); return; }
+    }
+    if (digits) {
+      if (state.cedulaMap[digits]) { showResultForId(digits); return; }
+      const phoneKey = 'phone:' + digits;
+      if (state.cedulaMap[phoneKey]) { showResultForId(phoneKey); return; }
+    }
+    const matches = [];
+    for (const idKey of Object.keys(state.cedulaMap)){
+      const ent = state.cedulaMap[idKey];
+      if (idKey.includes(q) || (ent.name||'').toLowerCase().includes(q.toLowerCase()) || (ent.email||'').toLowerCase().includes(q.toLowerCase()) || (ent.phone||'').includes(digits)) {
+        matches.push(idKey);
+      }
+    }
+    if (!matches.length) return toast('No se encontraron coincidencias');
+    if (matches.length === 1) { showResultForId(matches[0]); return; }
+    $('resultCard').classList.remove('hidden');
+    $('nameResultsList').innerHTML = `<div class="text-sm text-gray-600">Se encontraron ${matches.length} coincidencias. Selecciona una:</div>`;
+    matches.forEach(m => {
+      const btn = document.createElement('button');
+      btn.className = 'mt-2 p-2 border rounded text-left w-full';
+      const ent = state.cedulaMap[m];
+      btn.innerHTML = `<strong>${escapeHtml(m)}</strong> — ${escapeHtml(ent.name||'—')} <div class="text-xs text-gray-500">${escapeHtml(ent.email||'')}</div>`;
+      btn.onclick = ()=> showResultForId(m);
+      $('nameResultsList').appendChild(btn);
+    });
+  }
+
+  function searchByName(raw){
+    const q = (raw||'').toString().trim().toLowerCase();
+    if (!q) return toast('Introduce un nombre o parte de él');
+    const matches = [];
+    for (const idKey of Object.keys(state.cedulaMap)){
+      const ent = state.cedulaMap[idKey];
+      if ((ent.name||'').toLowerCase().includes(q) || (ent.email||'').toLowerCase().includes(q)) matches.push({idKey, ent});
+    }
+    if (!matches.length) return toast('No se encontraron asistentes con ese nombre');
+    if (matches.length === 1) { showResultForId(matches[0].idKey); return; }
+    $('resultCard').classList.remove('hidden');
+    $('nameResultsList').innerHTML = `<div class="text-sm text-gray-600">Se encontraron ${matches.length} coincidencias. Selecciona una:</div>`;
+    matches.forEach(m => {
+      const btn = document.createElement('button');
+      btn.className = 'mt-2 p-2 border rounded text-left w-full';
+      btn.innerHTML = `<strong>${escapeHtml(m.ent.name||'—')}</strong> — ${escapeHtml(m.idKey)} <div class="text-xs text-gray-500">${escapeHtml(m.ent.email||'')}</div>`;
+      btn.onclick = ()=> showResultForId(m.idKey);
+      $('nameResultsList').appendChild(btn);
+    });
+  }
+
+  // ============================
+  // EXPORTACIÓN (CSV/JSON en un solo botón con confirm)
+  // ============================
+  function exportCSV(){
+    const rows = [['ID','NOMBRE COMPLETO','CORREO','TELEFONO','AUTORIZACION','TEMAS']];
+    const keys = Object.keys(state.cedulaMap).slice().sort((a,b)=> a.localeCompare(b));
+    for (const idKey of keys){
+      const ent = state.cedulaMap[idKey];
+      rows.push([idKey, ent.name || '', ent.email || '', ent.phone || '', ent.consent || '', Array.from(ent.temas||[]).join(' | ')]);
+    }
+    const csv = rows.map(r=> r.map(c => '"' + (''+c).replace(/"/g,'""') + '"').join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'asistentes.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    toast('Exportado CSV');
+  }
+
+  function exportJSON(){
+    try{
+      const data = snapshotDB();
+      const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'asistentes_aseutp.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      toast('Exportado JSON');
+    } catch(e){
+      console.error('Error exportando JSON', e);
+      toast('No se pudo exportar JSON');
+    }
+  }
+
+  // ============================
+  // IMPORTAR (opcional desde app principal)
+  // ============================
+  async function importFromJsonFile(file){
+    try{
+      const txt = await file.text();
+      const json = JSON.parse(txt);
+
+      // detectar forma
+      let registros = [];
+      if (Array.isArray(json)) registros = json;
+      else if (Array.isArray(json.asistentes)) registros = json.asistentes;
+      else if (json.asistentes && typeof json.asistentes === 'object') {
+        registros = Object.keys(json.asistentes).map(k => Object.assign({idKey:k}, json.asistentes[k]));
+      }
+      else if (json.cedulaMap && typeof json.cedulaMap === 'object'){
+        registros = Object.keys(json.cedulaMap).map(k => Object.assign({idKey:k}, json.cedulaMap[k]));
+      }
+      else if (Array.isArray(json.tabla)) {
+        registros = json.tabla.map(r => ({
+          idKey: r.id, name: r.nombre, email: r.correo, phone: r.telefono, consent: r.autorizacion, temas: r.temas
+        }));
+      }
+
+      if (!Array.isArray(registros) || !registros.length){
+        toast('Archivo JSON sin registros válidos');
+        return;
+      }
+
+      for (const rec of registros){
+        const idKey = rec.idKey || rec.id || rec.identificador;
+        if (!idKey) continue;
+        if (!state.cedulaMap[idKey]) state.cedulaMap[idKey] = { name:'', email:'', phone:'', consent:null, temas:new Set(), sources:[] };
+        const slot = state.cedulaMap[idKey];
+        if (rec.name   && !slot.name)   slot.name = rec.name;
+        if (rec.email  && !slot.email)  slot.email = rec.email;
+        if (rec.phone  && !slot.phone)  slot.phone = (''+rec.phone).replace(/\D/g,'') || rec.phone;
+        if (rec.consent && !slot.consent) slot.consent = rec.consent;
+        const temasArr = Array.isArray(rec.temas) ? rec.temas : (typeof rec.temas === 'string' ? rec.temas.split('|').map(s=>s.trim()).filter(Boolean) : []);
+        temasArr.forEach(t=>{ slot.temas.add(t); state.temasSet.add(t); });
+        if (Array.isArray(rec.sources)) slot.sources.push(...rec.sources);
+      }
+
+      renderSummaryTable();
+      renderTemasList();
+      $('totalCount').textContent = Object.keys(state.cedulaMap).length;
+      saveToLocal();
+      toast('Archivos importados correctamente');
+    }catch(e){
+      console.error(e);
+      toast('No se pudo importar el JSON');
+    }
+  }
+
+  // ============================
+  // EVENTOS (binding) — Botones y navegación
+  // ============================
+  (function attachEventHandlersActions(){
+
+    // --- Navegación superior ---
+    $('navHome')?.addEventListener('click', (e)=>{ e.preventDefault(); window.scrollTo({top:0, behavior:'smooth'}); });
+    $('navTable')?.addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('summaryTable')?.scrollIntoView({behavior:'smooth'}); });
+    $('logoutBtn')?.addEventListener('click', ()=>{
+      const modal = $('loginModal');
+      if (modal){ modal.style.display='flex'; document.body.style.overflow='hidden'; }
+    });
+
+    // --- Seleccionar archivos ---
+    $('selectBtn')?.addEventListener('click', ()=> $('fileInput').click());
+    $('fileInput')?.addEventListener('change', (e) => {
+      const files = [...(e.target.files || [])];
+      if (!files.length) return;
+      if (typeof handleFiles === 'function') {
+        handleFiles(files);
+      }
+      e.target.value = ''; // permitir re-selección del mismo archivo
+    });
+
+    // --- Drag & Drop en dropzone ---
+    const dropzone = document.getElementById('dropzone');
+    if (dropzone) {
+      dropzone.ondragover = (e)=> { e.preventDefault(); dropzone.classList.add('ring-2','ring-indigo-300'); };
+      dropzone.ondragleave = ()=> dropzone.classList.remove('ring-2','ring-indigo-300');
+      dropzone.ondrop = (e)=>{ e.preventDefault(); dropzone.classList.remove('ring-2','ring-indigo-300'); const files = [...(e.dataTransfer?.files || [])]; if (files.length && typeof handleFiles === 'function') handleFiles(files); };
+    }
+
+    // --- Revisar y procesar ---
+    $('processBtn')?.addEventListener('click', async ()=> {
+      if (!state.files.length) return toast('No hay archivos cargados');
+      state.sheetsMeta = [];
+      if (typeof detectSheets === 'function') await detectSheets();
+      if (typeof detectSheets_v2 === 'function') {
+        const extra = await detectSheets_v2();
+        if (typeof mergeDetections === 'function') mergeDetections(extra);
+      }
+      if (typeof renderSheetsPreview === 'function') renderSheetsPreview();
+      $('reviewArea')?.classList.remove('hidden');
+      toast('Se detectaron hojas. Revísalas y mapea columnas si hace falta.');
+    });
+
+    // --- Confirmar revisión -> procesar (ACUMULAR) ---
+    $('confirmReviewBtn')?.addEventListener('click', async ()=> {
+      const sheetsPreview = $('sheetsPreview');
+      if (!sheetsPreview) return;
+
+      // leer mappings seleccionados por hoja
+      sheetsPreview.querySelectorAll('.sheet-card').forEach(card => {
+        const idx = +card.dataset.metaIndex;
+        const meta = state.sheetsMeta[idx];
+        if (!meta) return;
+        const cedSel   = card.querySelector('.sel-cedula');
+        const nameSel  = card.querySelector('.sel-nombre');
+        const lastSel  = card.querySelector('.sel-apellido');
+        const emailSel = card.querySelector('.sel-email');
+        const phoneSel = card.querySelector('.sel-phone');
+        const consentSel = card.querySelector('.sel-consent');
+        const usePhoneEmailAsId = card.querySelector('.chk-use-phone-email');
+        const genIdChk = card.querySelector('.chk-gen-id');
+        meta.override = {
+          cedIdx:   cedSel   ? (cedSel.value   === 'none' ? -1 : +cedSel.value)   : (meta.cedIdx   || -1),
+          nameIdx:  nameSel  ? (nameSel.value  === 'none' ? -1 : +nameSel.value)  : (meta.nameIdx  || -1),
+          lastNameIdx: lastSel ? (lastSel.value=== 'none' ? -1 : +lastSel.value)  : (meta.lastNameIdx || -1),
+          emailIdx: emailSel ? (emailSel.value === 'none' ? -1 : +emailSel.value) : (meta.emailIdx || -1),
+          phoneIdx: phoneSel ? (phoneSel.value === 'none' ? -1 : +phoneSel.value) : (meta.phoneIdx || -1),
+          consentIdx: consentSel ? (consentSel.value === 'none' ? -1 : +consentSel.value) : (meta.consentIdx || -1),
+          preferPhoneEmailAsId: usePhoneEmailAsId ? usePhoneEmailAsId.checked : false,
+          generateIdIfMissing:  genIdChk ? genIdChk.checked : false,
+        };
+      });
+
+      // construir lista de hojas a procesar
+      state.sheetsToProcess = [];
+      sheetsPreview.querySelectorAll('input[type=checkbox][data-i]').forEach(cb=>{
+        const metaIdx = +cb.dataset.i;
+        if (!isNaN(metaIdx) && cb.checked) {
+          const meta = state.sheetsMeta[metaIdx];
+          if (meta) state.sheetsToProcess.push(meta);
+        } else if (!isNaN(metaIdx) && !cb.checked) {
+          const meta = state.sheetsMeta[metaIdx];
+          if (meta && meta._autoSelected) meta._forcedUnselect = true;
+        }
+      });
+      state.sheetsMeta.forEach(m=>{
+        if (m._autoSelected && !m._forcedUnselect) {
+          if (!state.sheetsToProcess.includes(m)) state.sheetsToProcess.push(m);
+        }
+      });
+      if (!state.sheetsToProcess.length) state.sheetsToProcess = state.sheetsMeta.slice();
+      if (!state.sheetsToProcess.length) return toast('No hay hojas seleccionadas para procesar');
+
+      await finalizeProcessing();
+      $('reviewArea')?.classList.add('hidden');
+    });
+
+    // --- Volver en revisión ---
+    $('cancelReviewBtn')?.addEventListener('click', ()=> $('reviewArea')?.classList.add('hidden'));
+
+    // --- Buscar ---
+    $('searchBtn')?.addEventListener('click', ()=> searchByCedula($('searchInput').value));
+    $('searchInput')?.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') searchByCedula(e.target.value); });
+    $('searchNameBtn')?.addEventListener('click', ()=> searchByName($('searchNameInput').value));
+    $('searchNameInput')?.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') searchByName(e.target.value); });
+
+    // --- Exportar (un solo botón con confirm emergente) ---
+    $('exportBtn')?.addEventListener('click', ()=>{
+      const asJson = confirm('¿Exportar como JSON?\nAceptar = JSON\nCancelar = CSV');
+      if (asJson) exportJSON(); else exportCSV();
+    });
+
+    // --- Limpiar todo ---
+    $('clearBtn')?.addEventListener('click', ()=> {
+      if (!confirm('Limpiar todo (archivos cargados y datos procesados)?')) return;
+      state.files = [];
+      state.sheetsMeta = [];
+      state.cedulaMap = {};
+      state.temasSet = new Set();
+      state.sheetsToProcess = [];
+      state.currentCedula = null;
+      if (typeof renderFilesList === 'function') renderFilesList();
+      renderSummaryTable();
+      renderTemasList();
+      $('reviewArea')?.classList.add('hidden');
+      $('resultCard')?.classList.add('hidden');
+      $('totalCount').textContent = 0;
+      if (typeof ASEDB?.clearDB === 'function') ASEDB.clearDB();
+      saveToLocal();
+      toast('Aplicación reiniciada');
+    });
+
+    // --- Copiar temas ---
+    $('copyTemasBtn')?.addEventListener('click', ()=> {
+      const ced = state.currentCedula; if (!ced) return toast('No hay temas para copiar');
+      const ent = state.cedulaMap[ced]; if (!ent) return toast('No hay temas para copiar');
+      navigator.clipboard.writeText(Array.from(ent.temas||[]).join('\n'));
+      toast('Temas del asistente copiados');
+    });
+    $('copyAllTemasBtn')?.addEventListener('click', ()=> {
+      if (!state.temasSet || !state.temasSet.size) return toast('No hay temas disponibles');
+      navigator.clipboard.writeText(Array.from(state.temasSet).join('\n'));
+      toast('Todos los temas copiados');
+    });
+
+    // --- Importar JSON también desde la app (si usas #importJsonInput) ---
+    const importIn = $('importJsonInput');
+    importIn?.addEventListener('change', async (e)=>{
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      await importFromJsonFile(f);
+      e.target.value = '';
+      if (Object.keys(state.cedulaMap).length){
+        $('totalCount').textContent = Object.keys(state.cedulaMap).length;
+        renderSummaryTable();
+        renderTemasList();
+      }
+    });
+
+  })();
+
+
+  // ------------------ fin de PARTE 3 (Acciones). A partir de aquí puedes cerrar el </script> y el HTML en tu archivo principal. ------------------
+</script>
+</body>
+</html>
